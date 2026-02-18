@@ -1,0 +1,394 @@
+/**
+ * CSS Resolution Utilities
+ * Converts CMS type system values (ColorReference, BorderConfig, ResponsiveValue)
+ * into CSS strings for rendering.
+ */
+
+import type {
+  BorderConfig,
+  ColorReference,
+  ResponsiveValue,
+  ShadowConfig,
+} from "@otl-core/cms-types";
+import { isResponsiveConfig } from "./responsive.utils";
+
+/**
+ * Minify CSS by removing comments, extra whitespace, and unnecessary characters
+ */
+export function minifyCSS(css: string): string {
+  return css
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/\s+/g, " ")
+    .replace(/\s*([{}:;,>+~()[\]])\s*/g, "$1")
+    .replace(/:\s+/g, ":")
+    .replace(/;}/g, "}")
+    .replace(/:0px/g, ":0")
+    .replace(/:0em/g, ":0")
+    .replace(/:0rem/g, ":0")
+    .trim();
+}
+
+/**
+ * Resolve a ColorReference to a CSS color string
+ */
+export function resolveColorToCSS(
+  colorRef: ColorReference | undefined,
+  target?: "background" | "foreground"
+): string | undefined {
+  if (!colorRef) return undefined;
+  if (typeof colorRef !== "object") return undefined;
+
+  // Determine which target to use: parameter, or colorRef.target (if exists), or default to background
+  const resolvedTarget =
+    target ??
+    (colorRef.type !== "custom" ? colorRef.target : undefined) ??
+    "background";
+
+  if (colorRef.type === "custom") {
+    if (typeof colorRef.value === "string") {
+      return resolvedTarget === "foreground" ? undefined : colorRef.value;
+    }
+    return resolvedTarget === "foreground"
+      ? colorRef.value.foreground
+      : colorRef.value.background;
+  } else if (colorRef.type === "theme") {
+    return resolvedTarget === "foreground"
+      ? `var(--${colorRef.value}-foreground)`
+      : `var(--${colorRef.value})`;
+  } else if (colorRef.type === "variable") {
+    return resolvedTarget === "foreground"
+      ? `var(--${colorRef.value}-foreground)`
+      : `var(--${colorRef.value})`;
+  }
+
+  return undefined;
+}
+
+/**
+ * Resolve multiple ColorReferences to CSS color strings
+ */
+export function resolveColorsToCSS<
+  T extends Record<string, ColorReference | undefined>,
+>(colorRefs: T): Partial<Record<keyof T, string>> {
+  const resolved: Partial<Record<keyof T, string>> = {};
+
+  for (const key in colorRefs) {
+    const colorRef = colorRefs[key];
+    if (colorRef) {
+      const color = resolveColorToCSS(colorRef);
+      if (color) {
+        resolved[key] = color;
+      }
+    }
+  }
+
+  return resolved;
+}
+
+/**
+ * Resolve a BorderConfig to CSS border properties
+ */
+export function resolveBorderToCSS(
+  borderConfig: BorderConfig | undefined
+): Record<string, string> | undefined {
+  if (!borderConfig) return undefined;
+
+  const result: Record<string, string> = {};
+
+  const resolveSide = (
+    side:
+      | { width?: string; style?: string; color?: ColorReference }
+      | undefined,
+    defaultWidth?: string,
+    defaultStyle?: string,
+    defaultColor?: ColorReference
+  ): string | undefined => {
+    const width = side?.width || defaultWidth;
+    const style = side?.style || defaultStyle;
+    const color = side?.color || defaultColor;
+
+    if (!width || !style || !color) return undefined;
+
+    const resolvedColor = resolveColorToCSS(color);
+    if (!resolvedColor) return undefined;
+
+    return `${width} ${style} ${resolvedColor}`;
+  };
+
+  const hasIndividualSides =
+    borderConfig.top ||
+    borderConfig.right ||
+    borderConfig.bottom ||
+    borderConfig.left;
+
+  if (hasIndividualSides) {
+    const topBorder = resolveSide(
+      borderConfig.top,
+      borderConfig.width,
+      borderConfig.style,
+      borderConfig.color
+    );
+    if (topBorder) result.borderTop = topBorder;
+
+    const rightBorder = resolveSide(
+      borderConfig.right,
+      borderConfig.width,
+      borderConfig.style,
+      borderConfig.color
+    );
+    if (rightBorder) result.borderRight = rightBorder;
+
+    const bottomBorder = resolveSide(
+      borderConfig.bottom,
+      borderConfig.width,
+      borderConfig.style,
+      borderConfig.color
+    );
+    if (bottomBorder) result.borderBottom = bottomBorder;
+
+    const leftBorder = resolveSide(
+      borderConfig.left,
+      borderConfig.width,
+      borderConfig.style,
+      borderConfig.color
+    );
+    if (leftBorder) result.borderLeft = leftBorder;
+  } else if (borderConfig.width && borderConfig.style && borderConfig.color) {
+    const color = resolveColorToCSS(borderConfig.color);
+    if (color) {
+      result.border = `${borderConfig.width} ${borderConfig.style} ${color}`;
+    }
+  }
+
+  if (borderConfig.radius) {
+    result.borderRadius = borderConfig.radius;
+  }
+
+  return Object.keys(result).length > 0 ? result : undefined;
+}
+
+function normalizeResponsiveValue<T>(value: ResponsiveValue<T> | undefined): {
+  base?: T;
+  sm?: T;
+  md?: T;
+  lg?: T;
+  xl?: T;
+} {
+  if (!value) return {};
+
+  if (isResponsiveConfig(value)) {
+    return {
+      base: value.base,
+      sm: value.sm,
+      md: value.md,
+      lg: value.lg,
+      xl: value.xl,
+    };
+  }
+
+  return { base: value };
+}
+
+export interface ResponsiveSpacingConfig {
+  border?: ResponsiveValue<BorderConfig>;
+  margin?: ResponsiveValue<string>;
+  padding?: ResponsiveValue<string>;
+  gap?: ResponsiveValue<string>;
+  shadow?: ResponsiveValue<ShadowConfig>;
+}
+
+const BREAKPOINTS = [
+  { key: "Sm", minWidth: "640px" },
+  { key: "Md", minWidth: "768px" },
+  { key: "Lg", minWidth: "1024px" },
+  { key: "Xl", minWidth: "1280px" },
+];
+
+/**
+ * Generate responsive CSS for spacing (margin, padding, gap, border) with media queries
+ */
+export function generateResponsiveSpacingCSS(
+  className: string,
+  config: ResponsiveSpacingConfig
+): string | null {
+  const css: string[] = [];
+  const targetClass = `.${className}`;
+
+  const normalizedBorder = normalizeResponsiveValue(config.border);
+  const normalizedMargin = normalizeResponsiveValue(config.margin);
+  const normalizedPadding = normalizeResponsiveValue(config.padding);
+  const normalizedGap = normalizeResponsiveValue(config.gap);
+  const normalizedShadow = normalizeResponsiveValue(config.shadow);
+
+  const border = {
+    base: normalizedBorder.base,
+    sm: normalizedBorder.sm,
+    md: normalizedBorder.md,
+    lg: normalizedBorder.lg,
+    xl: normalizedBorder.xl,
+  };
+
+  const margin = {
+    base: normalizedMargin.base,
+    sm: normalizedMargin.sm,
+    md: normalizedMargin.md,
+    lg: normalizedMargin.lg,
+    xl: normalizedMargin.xl,
+  };
+
+  const padding = {
+    base: normalizedPadding.base,
+    sm: normalizedPadding.sm,
+    md: normalizedPadding.md,
+    lg: normalizedPadding.lg,
+    xl: normalizedPadding.xl,
+  };
+
+  const gap = {
+    base: normalizedGap.base,
+    sm: normalizedGap.sm,
+    md: normalizedGap.md,
+    lg: normalizedGap.lg,
+    xl: normalizedGap.xl,
+  };
+
+  const shadow = {
+    base: normalizedShadow.base,
+    sm: normalizedShadow.sm,
+    md: normalizedShadow.md,
+    lg: normalizedShadow.lg,
+    xl: normalizedShadow.xl,
+  };
+
+  const shadowToCSS = (s: ShadowConfig): string => {
+    const parts = [s.offsetX, s.offsetY, s.blurRadius, s.spreadRadius, s.color];
+    return s.inset ? `inset ${parts.join(" ")}` : parts.join(" ");
+  };
+
+  const baseStyles: string[] = [];
+
+  if (border.base) {
+    const resolvedBorder = resolveBorderToCSS(border.base);
+    if (resolvedBorder) {
+      Object.entries(resolvedBorder).forEach(([prop, value]) => {
+        if (value) {
+          const cssProp = prop.replace(/([A-Z])/g, "-$1").toLowerCase();
+          baseStyles.push(`${cssProp}:${value}`);
+        }
+      });
+    }
+  }
+
+  if (margin.base) {
+    baseStyles.push(`margin:${margin.base}`);
+  }
+
+  if (padding.base) {
+    baseStyles.push(`padding:${padding.base}`);
+  }
+
+  if (gap.base) {
+    baseStyles.push(`gap:${gap.base}`);
+  }
+
+  if (shadow.base) {
+    baseStyles.push(`box-shadow:${shadowToCSS(shadow.base)}`);
+  }
+
+  if (baseStyles.length > 0) {
+    css.push(`${targetClass}{${baseStyles.join(";")}}`);
+  }
+
+  BREAKPOINTS.forEach(({ key, minWidth }) => {
+    const bpKey = key.toLowerCase() as "sm" | "md" | "lg" | "xl";
+
+    const borderBp = border[bpKey];
+    const marginBp = margin[bpKey];
+    const paddingBp = padding[bpKey];
+    const gapBp = gap[bpKey];
+    const shadowBp = shadow[bpKey];
+
+    if (borderBp || marginBp || paddingBp || gapBp || shadowBp) {
+      const styles: string[] = [];
+
+      if (borderBp) {
+        const resolvedBorderBp = resolveBorderToCSS(borderBp);
+        if (resolvedBorderBp) {
+          Object.entries(resolvedBorderBp).forEach(([prop, value]) => {
+            if (value) {
+              const cssProp = prop.replace(/([A-Z])/g, "-$1").toLowerCase();
+              styles.push(`${cssProp}:${value}`);
+            }
+          });
+        }
+      }
+
+      if (marginBp) {
+        styles.push(`margin:${marginBp}`);
+      }
+
+      if (paddingBp) {
+        styles.push(`padding:${paddingBp}`);
+      }
+
+      if (gapBp) {
+        styles.push(`gap:${gapBp}`);
+      }
+
+      if (shadowBp) {
+        styles.push(`box-shadow:${shadowToCSS(shadowBp)}`);
+      }
+
+      if (styles.length > 0) {
+        css.push(
+          `@media(min-width:${minWidth}){${targetClass}{${styles.join(";")}}}`
+        );
+      }
+    }
+  });
+
+  return css.length > 0 ? minifyCSS(css.join("")) : null;
+}
+
+/**
+ * Check if a ResponsiveSpacingConfig has any margin values set
+ */
+export function hasAnyMargin(config: ResponsiveSpacingConfig): boolean {
+  if (config.margin) {
+    if (isResponsiveConfig(config.margin)) {
+      return !!(
+        config.margin.base ||
+        config.margin.sm ||
+        config.margin.md ||
+        config.margin.lg ||
+        config.margin.xl
+      );
+    }
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Map animation timing name to CSS timing function
+ */
+export function getAnimationTimingFunction(
+  timing: string = "ease-in-out"
+): string {
+  switch (timing) {
+    case "ease":
+      return "ease";
+    case "ease-in":
+      return "ease-in";
+    case "ease-out":
+      return "ease-out";
+    case "ease-in-out":
+      return "ease-in-out";
+    case "linear":
+      return "linear";
+    case "spring":
+      return "cubic-bezier(0.68,-0.55,0.265,1.55)";
+    default:
+      return "ease-in-out";
+  }
+}
