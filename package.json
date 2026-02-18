@@ -1,6 +1,6 @@
 {
   "name": "@otl-core/cms-utils",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "description": "Shared utility functions for OTL CMS",
   "main": "./dist/index.cjs",
@@ -38,7 +38,7 @@
     "url": "https://github.com/otl-core/cms-utils.git"
   },
   "dependencies": {
-    "@otl-core/cms-types": "^1.0.0",
+    "@otl-core/cms-types": "^1.0.1",
     "clsx": "^2.1.1",
     "nanoid": "^5.0.0",
     "tailwind-merge": "^3.3.1"
