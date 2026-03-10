@@ -64,7 +64,7 @@ export function flattenCategoryTree(tree) {
  * @param locale Locale to use for names (optional)
  * @returns Array of categories from root to target
  */
-export function getCategoryPath(categoryId, categories, locale) {
+export function getCategoryPath(categoryId, categories, _locale) {
   const categoryMap = new Map();
   categories.forEach((cat) => categoryMap.set(cat.id, cat));
   const path = [];

@@ -1,10 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
-  fromResponsiveConfig,
   getBreakpointValue,
-  getDefinedBreakpoints,
   isResponsiveConfig,
-  toResponsiveConfig,
 } from "../src/responsive.utils";
 
 describe("Responsive Utils", () => {
@@ -70,137 +67,6 @@ describe("Responsive Utils", () => {
       expect(getBreakpointValue(config, "sm")).toBe("fallback");
       expect(getBreakpointValue(config, "md")).toBe("fallback");
       expect(getBreakpointValue(config, "xl")).toBe("fallback");
-    });
-  });
-
-  describe("getDefinedBreakpoints", () => {
-    it("should return only base for non-responsive values", () => {
-      expect(getDefinedBreakpoints("simple")).toEqual(["base"]);
-      expect(getDefinedBreakpoints(123)).toEqual(["base"]);
-    });
-
-    it("should return only base when no other breakpoints defined", () => {
-      expect(getDefinedBreakpoints({ base: "value" })).toEqual(["base"]);
-    });
-
-    it("should return all defined breakpoints", () => {
-      const config = {
-        base: "base",
-        sm: "small",
-        lg: "large",
-        "2xl": "huge",
-      };
-      expect(getDefinedBreakpoints(config)).toEqual([
-        "base",
-        "sm",
-        "lg",
-        "2xl",
-      ]);
-    });
-
-    it("should handle all breakpoints", () => {
-      const config = {
-        base: "base",
-        sm: "sm",
-        md: "md",
-        lg: "lg",
-        xl: "xl",
-        "2xl": "2xl",
-      };
-      expect(getDefinedBreakpoints(config)).toEqual([
-        "base",
-        "sm",
-        "md",
-        "lg",
-        "xl",
-        "2xl",
-      ]);
-    });
-  });
-
-  describe("toResponsiveConfig", () => {
-    it("should create config with only base", () => {
-      expect(toResponsiveConfig({ base: "value" })).toEqual({ base: "value" });
-    });
-
-    it("should include defined breakpoints", () => {
-      const result = toResponsiveConfig({
-        base: "base",
-        md: "medium",
-        lg: "large",
-      });
-      expect(result).toEqual({
-        base: "base",
-        md: "medium",
-        lg: "large",
-      });
-    });
-
-    it("should omit undefined breakpoints", () => {
-      const result = toResponsiveConfig({
-        base: "base",
-        sm: undefined,
-        md: "medium",
-        lg: undefined,
-      });
-      expect(result).toEqual({
-        base: "base",
-        md: "medium",
-      });
-    });
-
-    it("should handle all breakpoints", () => {
-      const result = toResponsiveConfig({
-        base: "base",
-        sm: "sm",
-        md: "md",
-        lg: "lg",
-        xl: "xl",
-        "2xl": "2xl",
-      });
-      expect(result).toEqual({
-        base: "base",
-        sm: "sm",
-        md: "md",
-        lg: "lg",
-        xl: "xl",
-        "2xl": "2xl",
-      });
-    });
-  });
-
-  describe("fromResponsiveConfig", () => {
-    it("should convert non-responsive value to base-only object", () => {
-      expect(fromResponsiveConfig("simple")).toEqual({ base: "simple" });
-      expect(fromResponsiveConfig(123)).toEqual({ base: 123 });
-    });
-
-    it("should preserve all defined breakpoints", () => {
-      const config = {
-        base: "base",
-        md: "medium",
-        lg: "large",
-      };
-      expect(fromResponsiveConfig(config)).toEqual({
-        base: "base",
-        sm: undefined,
-        md: "medium",
-        lg: "large",
-        xl: undefined,
-        "2xl": undefined,
-      });
-    });
-
-    it("should handle complete responsive config", () => {
-      const config = {
-        base: "base",
-        sm: "sm",
-        md: "md",
-        lg: "lg",
-        xl: "xl",
-        "2xl": "2xl",
-      };
-      expect(fromResponsiveConfig(config)).toEqual(config);
     });
   });
 });

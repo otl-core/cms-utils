@@ -19,15 +19,3 @@
 export function isPasswordProtected(password_protected?: boolean): boolean {
   return password_protected === true;
 }
-
-/**
- * Filter password-protected content from a list
- * Useful for listings like blog posts where we don't want to show protected items
- * @param items - Array of items with password_protected metadata
- * @returns Filtered array with only non-protected items
- */
-export function filterPasswordProtectedContent<
-  T extends { password_protected?: boolean },
->(items: T[]): T[] {
-  return items.filter((item) => !isPasswordProtected(item.password_protected));
-}

@@ -145,11 +145,12 @@ function resolveBlockVariant(block, bucket) {
   const config = block.config;
   if (!isRecord(config)) return block;
   // Layout blocks use "children" or "child" for nested blocks
-  const childKey = Array.isArray(config.children)
-    ? "children"
-    : Array.isArray(config.child)
-      ? "child"
-      : null;
+  let childKey = null;
+  if (Array.isArray(config.children)) {
+    childKey = "children";
+  } else if (Array.isArray(config.child)) {
+    childKey = "child";
+  }
   if (!childKey) return block;
   const children = config[childKey];
   const resolvedChildren = children.map((child) =>

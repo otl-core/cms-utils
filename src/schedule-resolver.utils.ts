@@ -31,19 +31,3 @@ export function isContentVisible(
 
   return true;
 }
-
-/**
- * Filter a list of items based on schedule metadata.
- * Each item must have optional publish_at and expires_at fields.
- *
- * @param items - Array of items with schedule metadata
- * @param now - Optional current time (defaults to new Date())
- * @returns Filtered array containing only currently visible items
- */
-export function filterScheduledContent<
-  T extends { publish_at?: string; expires_at?: string },
->(items: T[], now?: Date): T[] {
-  return items.filter((item) =>
-    isContentVisible(item.publish_at, item.expires_at, now),
-  );
-}

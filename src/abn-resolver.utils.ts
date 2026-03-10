@@ -43,10 +43,7 @@ export interface MultivariateFormBlockData {
  * A user with a given bucket will always get the same variant
  * for a given weight configuration.
  */
-export function selectVariant(
-  bucket: number,
-  variants: VariantConfig[],
-): string {
+function selectVariant(bucket: number, variants: VariantConfig[]): string {
   if (variants.length === 0) {
     throw new Error("selectVariant: variants array must not be empty");
   }
@@ -211,11 +208,12 @@ function resolveBlockVariant(block: unknown, bucket: number): unknown {
   if (!isRecord(config)) return block;
 
   // Layout blocks use "children" or "child" for nested blocks
-  const childKey = Array.isArray(config.children)
-    ? "children"
-    : Array.isArray(config.child)
-      ? "child"
-      : null;
+  let childKey: string | null = null;
+  if (Array.isArray(config.children)) {
+    childKey = "children";
+  } else if (Array.isArray(config.child)) {
+    childKey = "child";
+  }
 
   if (!childKey) return block;
 
